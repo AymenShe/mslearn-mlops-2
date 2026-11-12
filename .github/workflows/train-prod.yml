@@ -67,7 +67,18 @@ jobs:
 
       - name: Stream prod training job
         run: |
-          az ml job stream --name "${{ steps.train.outputs.job_name }}"
+          JOB_NAME="${{ steps.train.outputs.job_name }}"
+          az ml job stream --name "$JOB_NAME" || true
+          
+          # Boucle de sécurité : attend que le job atteigne un état final
+          while true; do
+            STATUS=$(az ml job show --name "$JOB_NAME" --query status -o tsv)
+            echo "État actuel du job : $STATUS"
+            if [[ "$STATUS" == "Completed" || "$STATUS" == "Failed" || "$STATUS" == "Canceled" ]]; then
+              break
+            fi
+            sleep 15
+          done
 
       - name: Download prod training outputs
         id: download
